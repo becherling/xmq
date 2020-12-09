@@ -68,8 +68,8 @@ $(info Building $(VERSION))
 
 CXXFLAGS := $(DEBUG_FLAGS) -fPIC -fmessage-length=0 -std=c++11 -Wall -Wno-unused-function -I$(BUILD) -I.
 
+# Add this to get preprocessed output $(CXX) $(CXXFLAGS) $< -c -E > $@.src
 $(BUILD)/%.o: src/%.cc $(wildcard src/%.h)
-	$(CXX) $(CXXFLAGS) $< -c -E > $@.src
 	$(CXX) $(CXXFLAGS) $< -MMD -c -o $@
 
 XMQ_OBJS:=\

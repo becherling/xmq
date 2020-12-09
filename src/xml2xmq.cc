@@ -28,6 +28,7 @@
 #include <fstream>
 #include <map>
 #include <set>
+#include <stdarg.h>
 #include <vector>
 #include "rapidxml/rapidxml.hpp"
 
@@ -53,25 +54,40 @@ Settings *settings_;
 #define red "\033[0;31m"
 #define reset_color "\033[0m"
 
+thread_local int (*output)(const char* fmt, ...);
+thread_local vector<char> *out_buffer;
+
+int outputText(const char *fmt, ...)
+{
+    va_list args;
+    char buffer[1024];
+    buffer[1023] = 0;
+    va_start(args, fmt);
+    vsnprintf(buffer, 1024, fmt, args);
+    va_end(args);
+    out_buffer->insert(out_buffer->end(), buffer, buffer+strlen(buffer));
+    return 0;
+}
+
 void printTag(const char *tag)
 {
-    if (settings_->use_color) printf(dark_blue);
-    printf("%s", tag);
-    if (settings_->use_color) printf(reset_color);
+    if (settings_->use_color) output(dark_blue);
+    output("%s", tag);
+    if (settings_->use_color) output(reset_color);
 }
 
 void printKeyTag(const char *tag)
 {
-    if (settings_->use_color) printf(green);
-    printf("%s", tag);
-    if (settings_->use_color) printf(reset_color);
+    if (settings_->use_color) output(green);
+    output("%s", tag);
+    if (settings_->use_color) output(reset_color);
 }
 
 void printAttributeKey(const char *key)
 {
-    if (settings_->use_color) printf(green);
-    printf("%s", key);
-    if (settings_->use_color) printf(reset_color);
+    if (settings_->use_color) output(green);
+    output("%s", key);
+    if (settings_->use_color) output(reset_color);
 }
 
 bool needsEscaping(const char *s, bool is_attribute)
@@ -111,8 +127,8 @@ bool containsNewlines(const char *s)
 
 void printIndent(int i, bool newline=true)
 {
-    if (newline) printf("\n");
-    while (--i >= 0) printf(" ");
+    if (newline) output("\n");
+    while (--i >= 0) output(" ");
 }
 
 size_t trimWhiteSpace(const char **datap, int len = 0)
@@ -145,9 +161,9 @@ void printComment(int len, const char *comment, int indent)
         if (comment[i] == '\n') single_line = false;
     }
     if (single_line) {
-        if (settings_->use_color) printf(yellow);
-        printf("// %.*s", len, comment);
-        if (settings_->use_color) printf(reset_color);
+        if (settings_->use_color) output(yellow);
+        output("// %.*s", len, comment);
+        if (settings_->use_color) output(reset_color);
         return;
     }
     const char *p = comment;
@@ -159,26 +175,26 @@ void printComment(int len, const char *comment, int indent)
             int n = i - prev_i;
             if (p == comment)
             {
-                if (settings_->use_color) printf(yellow);
-                printf("/* %.*s", n, p);
+                if (settings_->use_color) output(yellow);
+                output("/* %.*s", n, p);
             }
             else if (i == len-1)
             {
                 printIndent(indent);
                 const char *pp = p;
                 size_t nn = trimWhiteSpace(&pp, n);
-                if (settings_->use_color) printf(yellow);
-                printf("   %.*s */", (int)nn, pp);
+                if (settings_->use_color) output(yellow);
+                output("   %.*s */", (int)nn, pp);
             }
             else
             {
                 printIndent(indent);
                 const char *pp = p;
                 size_t nn = trimWhiteSpace(&pp, n);
-                if (settings_->use_color) printf(yellow);
-                printf("   %.*s", (int)nn, pp);
+                if (settings_->use_color) output(yellow);
+                output("   %.*s", (int)nn, pp);
             }
-            if (settings_->use_color) printf(reset_color);
+            if (settings_->use_color) output(reset_color);
             p = comment+i+1;
             prev_i = i+1;
         }
@@ -188,67 +204,70 @@ void printComment(int len, const char *comment, int indent)
 
 void printEscaped(const char *s, bool is_attribute, int indent, bool must_quote)
 {
-
+    if (s[0] == 0)
+    {
+        must_quote = true;
+    }
     if (!must_quote && !needsEscaping(s, is_attribute))
     {
-        if (settings_->use_color) printf(red);
-        printf("%s", s);
-        if (settings_->use_color) printf(reset_color);
+        if (settings_->use_color) output(red);
+        output("%s", s);
+        if (settings_->use_color) output(reset_color);
     }
     else
     {
         size_t n = 0;
-        if (settings_->use_color) printf(red);
-        printf("'");
+        if (settings_->use_color) output(red);
+        output("'");
         while (*s != 0)
         {
             switch (*s) {
-                case '\\' : printf("\\\\"); break;
-                case '\'' : printf("\\'"); break;
+                case '\\' : output("\\\\"); break;
+                case '\'' : output("\\'"); break;
                 case '\n' :
-                    //printf("\\n'");
+                    //output("\\n'");
                     printIndent(indent+1); // Add one for the '
                     n = 0;
-                    if (settings_->use_color) printf(red);
-                    //printf("'");
+                    if (settings_->use_color) output(red);
+                    //output("'");
                     break;
-                default:    printf("%c", *s);
+                default:    output("%c", *s);
             }
             s++;
             n++;
             if (is_attribute && n > attr_max_width)
             {
                 n = 0;
-                printf("'");
+                output("'");
                 printIndent(indent);
-                if (settings_->use_color) printf(red);
-                printf("'");
+                if (settings_->use_color) output(red);
+                output("'");
             }
         }
-        printf("'");
-        if (settings_->use_color) printf(reset_color);
+        output("'");
+        if (settings_->use_color) output(reset_color);
     }
 }
 
 void printCdataEscaped(const char *s)
 {
     size_t n = 0;
-    if (settings_->use_color) printf(red);
-    printf("'''");
+    if (settings_->use_color) output(red);
+    output("'''");
     while (*s != 0)
     {
         switch (*s) {
         case '\n' :
-            printf("\n");
-            if (settings_->use_color) printf(red);
+            output("\n");
+            if (settings_->use_color) output(red);
             break;
-        default:    printf("%c", *s);
+        default:    output("%c", *s);
         }
         s++;
         n++;
     }
-    printf("'''");
-    if (settings_->use_color) printf(reset_color);
+    output("'''");
+    if (settings_->use_color) output(reset_color);
 }
 
 bool nodeHasNoChildren(xml_node<> *node)
@@ -280,7 +299,7 @@ bool hasAttributes(xml_node<> *node)
 
 void printAlign(int i)
 {
-    while (--i >= 0) printf(" ");
+    while (--i >= 0) output(" ");
 }
 
 void printAlignedAttribute(xml_attribute<> *i,
@@ -296,7 +315,33 @@ void printAttributes(xml_node<> *node,
     vector<pair<xml_attribute<>*,const char *>> lines;
     size_t align = 0;
 
+    // XML rules state attribute names must be unique within the tag.
+    // Thus <something _="foo" id="bar" /> is legal
+    // and <something _="foo" _="bar" /> is not legal.
+    // The syntatic sugar for xmq renders this as:
+    // something('foo')
+    xml_attribute<> *underscore {};
+
     xml_attribute<> *i = node->first_attribute();
+    while (i)
+    {
+        const char *key = i->name();
+        const char *value = i->value();
+        if (key[0] == '_' && key[1] == 0)
+        {
+            underscore = i;
+            // Here we should not just add 2 for the quotes, but also
+            // handle any internal back slashes etc. TODO
+            size_t len = strlen(value)+2;
+            if (len > align)
+            {
+                align = len;
+            }
+        }
+        i = i->next_attribute();
+    }
+
+    i = node->first_attribute();
     while (i)
     {
         const char *key = i->name();
@@ -315,12 +360,25 @@ void printAttributes(xml_node<> *node,
         i = i->next_attribute();
     }
 
-    printf("(");
-    i = node->first_attribute();
+    output("(");
     bool do_indent = false;
+
+    if (underscore)
+    {
+        printAlignedAttribute(underscore, underscore->value(), indent, align, do_indent);
+        do_indent = true;
+    }
+
+    i = node->first_attribute();
     while (i)
     {
         const char *key = i->name();
+        // Skip the underscore.
+        if (key[0] == '_' && key[1] == 0)
+        {
+            i = i->next_attribute();
+            continue;
+        }
         const char *value = i->value();
         string checka = string("@")+key;
         string checkb = string(node->name())+"@"+key;
@@ -332,7 +390,7 @@ void printAttributes(xml_node<> *node,
         }
         i = i->next_attribute();
     }
-    printf(")");
+    output(")");
 }
 
 void printAligned(xml_node<> *i,
@@ -365,19 +423,20 @@ void printAligned(xml_node<> *i,
         {
             printAttributes(i, indent);
         }
-        if (value != NULL) {
+        if (value != NULL)
+        {
             size_t len = strlen(key);
             printAlign(align-len+1);
             int ind = indent+align+3;
             if (containsNewlines(value))
             {
-                printf("=");
+                output("=");
                 ind = indent;
                 printIndent(indent);
             }
             else
             {
-                printf("= ");
+                output("= ");
             }
             printEscaped(value, false, ind, false);
         }
@@ -392,22 +451,37 @@ void printAlignedAttribute(xml_attribute<> *i,
 {
     if (do_indent) printIndent(indent);
     const char *key = i->name();
-    printAttributeKey(key);
-    if (value != NULL) {
-        size_t len = strlen(key);
-        printAlign(align-len+1);
-        int ind = indent+align+3;
-        if (containsNewlines(value))
+    if (key[0] == '_' && key[1] == 0)
+    {
+        // This is the special _ attribute which xmq
+        // prints as just the quoted string of the value.
+        // It must be quoted, otherwise it cannot be separated
+        // from a boolean attribute.
+        printEscaped(value, false, indent, true);
+    }
+    else
+    {
+        printAttributeKey(key);
+        // Print the value if it exists, and is different
+        // from the key. I.e. boolean xml values must be stored as:
+        // hidden="hidden" this will translate into just hidden in xmq.
+        if (value != NULL && strcmp(key, value))
         {
-            printf("=");
-            ind = indent+4;
-            printIndent(ind);
+            size_t len = strlen(key);
+            printAlign(align-len+1);
+            int ind = indent+align+3;
+            if (containsNewlines(value))
+            {
+                output("=");
+                ind = indent+4;
+                printIndent(ind);
+            }
+            else
+            {
+                output("= ");
+            }
+            printEscaped(value, false, ind, false);
         }
-        else
-        {
-            printf("= ");
-        }
-        printEscaped(value, false, ind, false);
     }
 }
 
@@ -430,11 +504,11 @@ void render(xml_node<> *node, int indent, bool newline=true)
     {
         printAttributes(node, indent);
         printIndent(indent);
-        printf("{");
+        output("{");
     }
     else
     {
-        printf(" {");
+        output(" {");
     }
     xml_node<> *i = node->first_node();
     while (i)
@@ -479,7 +553,7 @@ void render(xml_node<> *node, int indent, bool newline=true)
         printAligned(p.first, p.second, indent+4, align, true);
     }
     printIndent(indent);
-    printf("}");
+    output("}");
 }
 
 
@@ -572,12 +646,28 @@ void find_all_prefixes(xml_node<> *i, StringCount &c)
 
 #define VERSION "0.1"
 
-int main_xml2xmq(vector<char> *buffer, Settings *provided_settings)
+int main_xml2xmq(Settings *provided_settings)
 {
+    if (provided_settings->out == NULL)
+    {
+        output = printf;
+    }
+    else
+    {
+        out_buffer = provided_settings->out;
+        output = outputText;
+    }
+    vector<char> *buffer = provided_settings->in;
     settings_ = provided_settings;
     xml_document<> doc;
-
-    doc.parse<parse_comment_nodes|parse_trim_whitespace>(&(*buffer)[0]);
+    if (provided_settings->html)
+    {
+        doc.parse<parse_void_elements|parse_doctype_node|parse_comment_nodes|parse_trim_whitespace>(&(*buffer)[0]);
+    }
+    else
+    {
+        doc.parse<parse_doctype_node|parse_comment_nodes|parse_trim_whitespace>(&(*buffer)[0]);
+    }
     xml_node<> *root = doc.first_node();
 
     if (settings_->compress)
@@ -588,7 +678,7 @@ int main_xml2xmq(vector<char> *buffer, Settings *provided_settings)
 
         for (auto &p : prefixes_)
         {
-            printf("# %d=%s\n", p.second, p.first.c_str());
+            output("# %d=%s\n", p.second, p.first.c_str());
         }
     }
 
@@ -598,11 +688,23 @@ int main_xml2xmq(vector<char> *buffer, Settings *provided_settings)
     bool newline = false;
     while (root != NULL)
     {
+        if (root->type() == node_doctype)
+        {
+            // Do not print the doctype.
+            // This is assumed to be <!DOCTYPE html>
+            if (strcmp(root->value(), "html"))
+            {
+                fprintf(stderr, "Warning! Unexpected doctype %s\n", root->value());
+            }
+            root = root->next_sibling();
+            continue;
+        }
+
         render(root, 0, newline);
         newline = true;
         root = root->next_sibling();
     }
 
-    printf("\n");
+    output("\n");
     return 0;
 }

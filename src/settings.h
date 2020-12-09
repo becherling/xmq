@@ -27,12 +27,16 @@
 
 #include <string>
 #include <set>
+#include <vector>
 
 struct Settings
 {
+    std::vector<char> *in;
+    std::vector<char> *out;
     bool use_color;
     bool compress;
     std::set<std::string> excludes;
+    bool html;
 };
 
 #endif

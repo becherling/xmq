@@ -17,17 +17,73 @@ files hard to read and edit directly by hand.
 The xmq format is simply a restructuring of the xml that (to me at
 least) makes config files written in xml easier to read and edit.
 
-The xmq format exactly represents the xml format and can therefore be
-converted back to xml after any editing has been done. (Caveat
-whitespace trimmings.)
+The xmq format reserves these 7 characters and whitespace:
+```
+= ' { } ( )
+```
+where whitespace is space,cr,lf,tab,newline. Any content containing the
+reserved characters must be quoted using the single quote character.
 
-The xmq format reserves these characters: `= <EQUALS> '<SINGLE QUOTE> { } <BRACES> ( ) <PARENTHESES>` and `<SPACE>`.
-xmq follows xml in that key names (tags) are not allowed to contain these.
-Value strings (tag content or attributes) that contain the reserved characters must be quoted with the `' <SINGLE QUOTE>`.
-A single quote must be is typed \\' inside a quoted string.
+```
+purchase {
+    product = 'Bar of soap'
+    price   = 123.4
+    date    = 2020-12-09
+}
+```
+
+which translates into
+```
+<purchase>
+  <product>Bar of soap</product>
+  <price>123.4</price>
+  <date>2020-12-09</date>
+</purchase>
+```
+
+Xmq is designed to exactly represent the xml format and can therefore
+be converted back to xml after any editing has been done.
+**But caveat whitespace trimmings!**
+
+Xmq makes significant whitespace explicit. Also contrary to xml, xmq
+will by default treat leading and ending whitespace as insignificant
+and trim these, but keeping incidental indentations. If you want to
+preserve all whitespace then use `-p` for preserve whitespace.
+
+Without -p, the following xml is considered by xmq to be equivalent to the above xml.
+```
+<purchase>
+  <product>
+     Bar of soap
+  </product>
+  <price>   123.4   </price>
+  <date>
+2020-12-09</date></purchase>
+```
+
+Likewside this xmq is equivalent:
+```
+purchase{product='Bar of soap' price=123.4 date=2020-12-09}
+```
+
+Xml forbids the reserved characters in tags and thus xmq does as well.
+Content/value strings do not need to be quoted if they do not contain
+the reserved characters.
+```
+form=27B/6
+```
+but
+```
+address='Street 123 (b)'
+```
+
+Value strings (tag content or attributes) that contain the
+reserved characters must be quoted with the `'`.  A
+single quote must be is typed \\' inside a quoted string.
 
 A comment starts with `//` or `/*` and ends with eol or `*/`.
-Thus a value string that starts with the comment starters, must be quoted with the `' <SINGLE QUOTE>`.
+Thus a value string that starts with the comment starters,
+must be quoted with the `' <SINGLE QUOTE>`.
 
 Type `xmq pom.xml > pom.xmq` to convert your pom.xml file into an xmq file.
 
