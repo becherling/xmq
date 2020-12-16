@@ -5,10 +5,6 @@
 <body>
 
     <h1>XMQ specification</h1>
-    <p>
-    by Fredrik Öhrström 2019-2020 oehrstroem@gmail.com<br>
-    see <a href="https://github.com/weetmuts/xmq">https://github.com/weetmuts/xmq</a>
-    </p>
 
     <p>
     <b>safe text</b> consists of all valid utf8 exluding
@@ -229,6 +225,48 @@ info {
        y
         z
          w&lt;/info&gt;
+</pre></div>
+<div class="info"> You can add newlines inside an attribute.</div>
+<div class="row">
+<pre class="box">
+delta(code =
+    'Line1
+     Line2
+     Line3')
+</pre><pre class="spacing">↗</pre><pre class="box">
+&lt;delta code="Line1&amp;#10;Line2&amp;#10;Line3"/&gt;
+</pre></div>
+<div class="info"> XMQ attributes having no value are allowed and for xml translates into attr="attr"</div>
+<div class="row">
+<pre class="box">
+alfa {
+    body {
+        div(gurka
+            lemon) = Texten!
+    }
+}
+</pre><pre class="spacing">⟷</pre><pre class="box">
+&lt;alfa&gt;
+  &lt;body&gt;
+    &lt;div gurka="gurka" lemon="lemon"&gt;Texten!&lt;/div&gt;
+  &lt;/body&gt;
+&lt;/alfa&gt;
+</pre></div>
+<div class="info"> Translates into the same single attribute for html.</div>
+<div class="row">
+<pre class="box">
+html {
+    body {
+        div(gurka
+            lemon) = Texten!
+    }
+}
+</pre><pre class="spacing">⟷</pre><pre class="box">
+&lt;html&gt;
+  &lt;body&gt;
+    &lt;div gurka lemon&gt;Texten!&lt;/div&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
 </pre></div>
 <div class="info"> Example feature.xml</div>
 <div class="row">
